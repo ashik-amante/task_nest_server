@@ -27,6 +27,7 @@ async function run() {
     try {
 
         const jobsCollection = client.db("taskNest").collection('jobs')
+        const appliedJobCollection = client.db("taskNest").collection('applied')
        
         await client.connect();
 
@@ -48,6 +49,31 @@ async function run() {
             const email = req.params.email;
             const query = {buyerEmail:email}
             const result = await jobsCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        // find a single job to update
+        app.get('/jobs/update/:id', async(req,res)=>{
+            const id = req.params.id;
+            
+            const query = {_id : new ObjectId(id)}
+            const result = await jobsCollection.findOne(query)
+            
+            res.send(result)
+        })
+
+        // update a job
+        app.patch('/jobs/update/:id', async(req,res)=>{
+            const job = req.body;
+            
+            const id = req.params.id
+            const query = { _id : new ObjectId(id)}
+            const updatedDoc = {
+                $set:{
+                    ...job
+                }
+            }
+            const result = await jobsCollection.updateOne(query,updatedDoc)
             res.send(result)
         })
 
