@@ -28,60 +28,84 @@ async function run() {
 
         const jobsCollection = client.db("taskNest").collection('jobs')
         const appliedJobCollection = client.db("taskNest").collection('applied')
-       
+        const applicationCollection = client.db("taskNest").collection('applications')
+
         await client.connect();
 
         // Adda job
-        app.post('/jobs', async(req,res)=>{
+        app.post('/jobs', async (req, res) => {
             const jobs = req.body;
             const result = await jobsCollection.insertOne(jobs)
             res.send(result)
         })
 
         // get all jobs 
-        app.get('/jobs', async(req,res)=>{
+        app.get('/jobs', async (req, res) => {
             const result = await jobsCollection.find().toArray()
             res.send(result)
         })
 
         // get a single user job
-        app.get('/jobs/:email', async(req,res)=>{
+        app.get('/jobs/:email', async (req, res) => {
             const email = req.params.email;
-            const query = {buyerEmail:email}
+            const query = { buyerEmail: email }
             const result = await jobsCollection.find(query).toArray()
+            res.send(result)
+        })
+        // find a applicant job
+        app.get('/jobs/applicant/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { applicantEmail: email }
+            const result = await jobsCollection.find(query).toArray()
+            console.log(result);
             res.send(result)
         })
 
         // find a single job to update
-        app.get('/jobs/update/:id', async(req,res)=>{
+        app.get('/jobs/update/:id', async (req, res) => {
             const id = req.params.id;
-            
-            const query = {_id : new ObjectId(id)}
+
+            const query = { _id: new ObjectId(id) }
             const result = await jobsCollection.findOne(query)
-            
+
             res.send(result)
         })
 
         // update a job
-        app.patch('/jobs/update/:id', async(req,res)=>{
+        app.patch('/jobs/update/:id', async (req, res) => {
             const job = req.body;
-            
+
             const id = req.params.id
-            const query = { _id : new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const updatedDoc = {
-                $set:{
+                $set: {
                     ...job
                 }
             }
-            const result = await jobsCollection.updateOne(query,updatedDoc)
+            const result = await jobsCollection.updateOne(query, updatedDoc)
             res.send(result)
         })
 
         // Delete a job
-        app.delete('/jobs/delete/:id', async(req,res)=>{
+        app.delete('/jobs/delete/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id : new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await jobsCollection.deleteOne(query)
+            res.send(result)
+        })
+
+        // Applications realted api
+        app.post('/applications', async (req, res) => {
+            const applicationsData = req.body
+            const result = await applicationCollection.insertOne(applicationsData)
+            res.send(result)
+        })
+
+        // get a specific job for user
+        app.get('/applications/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email }
+            const result = await applicationCollection.find(query).toArray()
             res.send(result)
         })
 
@@ -90,7 +114,7 @@ async function run() {
         // await client.db("admin").command({ ping: 1 });
         // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
-  
+
         // await client.close();
     }
 }
