@@ -45,21 +45,14 @@ async function run() {
             res.send(result)
         })
 
-        // get a single user job
-        app.get('/jobs/:email', async (req, res) => {
+        // get an user's posted job
+        app.get('/jobs/myposted-jobs/:email', async (req, res) => {
             const email = req.params.email;
-            const query = { buyerEmail: email }
+            const query = { 'buyer.email': email }
             const result = await jobsCollection.find(query).toArray()
             res.send(result)
         })
-        // find a applicant job
-        app.get('/jobs/applicant/:email', async (req, res) => {
-            const email = req.params.email;
-            const query = { applicantEmail: email }
-            const result = await jobsCollection.find(query).toArray()
-            console.log(result);
-            res.send(result)
-        })
+       
 
         // find a single job to update
         app.get('/jobs/update/:id', async (req, res) => {
@@ -96,15 +89,28 @@ async function run() {
 
         // Applications realted api
         app.post('/applications', async (req, res) => {
-            const applicationsData = req.body
-            const result = await applicationCollection.insertOne(applicationsData)
+            const application = req.body
+            const {jobId,email} = application
+            
+            const isApplied = await applicationCollection.findOne({jobId})
+            console.log(isApplied);
+            if(isApplied){
+                return res.status(400).send("You've already applied on this job")
+            }
+            const result = await applicationCollection.insertOne(application)
+
+            // now increment total applicant in job collection
+            await jobsCollection.updateOne(
+                {_id : new ObjectId (jobId)},
+                { $inc : { totalApplicant : 1}}
+            )
             res.send(result)
         })
 
-        // get a specific job for user
-        app.get('/applications/:email', async (req, res) => {
-            const email = req.params.email;
-            const query = { email: email }
+        // get my applied jobs
+        app.get('/myapplied-jobs/:email', async(req,res)=>{
+            const email = req.params.email
+            const query = {email : email}
             const result = await applicationCollection.find(query).toArray()
             res.send(result)
         })
