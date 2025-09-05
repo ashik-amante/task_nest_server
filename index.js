@@ -2,16 +2,27 @@ const express = require('express');
 const app = express()
 require('dotenv').config()
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+
 const port = process.env.PORT || 5000
 
 // middlewire
-app.use(cors())
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+    optionsSuccessStatus: 200
+}))
 app.use(express.json())
+app.use(cookieParser())
+
+
 
 
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pdx5h.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -32,6 +43,44 @@ async function run() {
 
         await client.connect();
 
+        // jwt
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '7d' })
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
+            }).send({ success: true })
+        })
+
+        // logout
+        app.get('/logout', (req, res) => {
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+                maxAge: 0
+            }).send({ success: true })
+        })
+
+        // verify token 
+        const verifyToken = (req, res, next) => {
+            const token = req.cookies?.token;
+            if (!token) {
+                return res.status(401).send({ message: 'Unauthorize access' })
+            }
+
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(403).send({ message: 'Forbidden access' })
+                }
+                req.user = decoded
+                next()
+            })
+
+        }
+
         // Adda job
         app.post('/jobs', async (req, res) => {
             const jobs = req.body;
@@ -46,13 +95,18 @@ async function run() {
         })
 
         // get an user's posted job
-        app.get('/jobs/myposted-jobs/:email', async (req, res) => {
+        app.get('/jobs/myposted-jobs/:email', verifyToken, async (req, res) => {
+            const tokenEmail = req.user.email
+        console.log(tokenEmail);
             const email = req.params.email;
+            if(email !== tokenEmail){
+                return res.status(403).send({message: "forbidden acess"})
+            }
             const query = { 'buyer.email': email }
             const result = await jobsCollection.find(query).toArray()
             res.send(result)
         })
-       
+
 
         // find a single job to update
         app.get('/jobs/update/:id', async (req, res) => {
@@ -90,27 +144,27 @@ async function run() {
         // Applications realted api
         app.post('/applications', async (req, res) => {
             const application = req.body
-            const {jobId,email} = application
-            
-            const isApplied = await applicationCollection.findOne({jobId})
+            const { jobId, email } = application
+
+            const isApplied = await applicationCollection.findOne({ jobId })
             console.log(isApplied);
-            if(isApplied){
+            if (isApplied) {
                 return res.status(400).send("You've already applied on this job")
             }
             const result = await applicationCollection.insertOne(application)
 
             // now increment total applicant in job collection
             await jobsCollection.updateOne(
-                {_id : new ObjectId (jobId)},
-                { $inc : { totalApplicant : 1}}
+                { _id: new ObjectId(jobId) },
+                { $inc: { totalApplicant: 1 } }
             )
             res.send(result)
         })
 
         // get my applied jobs
-        app.get('/myapplied-jobs/:email', async(req,res)=>{
+        app.get('/myapplied-jobs/:email', async (req, res) => {
             const email = req.params.email
-            const query = {email : email}
+            const query = { email: email }
             const result = await applicationCollection.find(query).toArray()
             res.send(result)
         })
