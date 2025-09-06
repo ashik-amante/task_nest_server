@@ -87,13 +87,15 @@ async function run() {
             const result = await jobsCollection.insertOne(jobs)
             res.send(result)
         })
+       
 
         // get all jobs 
         app.get('/jobs', async (req, res) => {
+            
             const result = await jobsCollection.find().toArray()
             res.send(result)
         })
-
+      
         // get an user's posted job
         app.get('/jobs/myposted-jobs/:email', verifyToken, async (req, res) => {
             const tokenEmail = req.user.email
@@ -168,6 +170,44 @@ async function run() {
             const result = await applicationCollection.find(query).toArray()
             res.send(result)
         })
+
+          // get all jobs pagination
+        app.get('/all-jobs', async (req, res) => {
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
+            const filter = req.query.filter
+            const sort = req.query.sort
+            const search = req.query.search
+
+            let options = {}
+            if(sort) options = {sort : { deadline : sort === 'asc' ? 1 : -1}}
+
+            let query = {
+                title : { $regex : search, $options: "i"},
+            }
+            if(filter) query = {...query, category : filter}
+            console.log('page',page,'sizw',size,);
+            const result = await jobsCollection
+            .find(query,options)
+            .skip((page - 1) * size)
+            .limit(size).toArray()
+            res.send(result)
+        })
+
+         // JB COUNT
+        app.get('/jobs-count', async(req,res)=>{
+            const filter = req.query.filter;
+            const search = req.query.search;
+
+            let query = {
+                title : { $regex : search, $options : "i"}
+            }
+            if(filter) query = {...query, category : filter}
+
+            const count = await jobsCollection.countDocuments(query)
+            res.send({count})
+        })
+
 
 
         // // Send a ping to confirm a successful connection
