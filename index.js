@@ -146,6 +146,11 @@ async function run() {
         // Applications realted api
         app.post('/applications', async (req, res) => {
             const application = req.body
+            const deadline = application.deadline 
+            if (new Date(deadline) < new Date()){
+                console.log("time ses");
+                return res.status(400).send({message: "Deadline has expired"})
+            }
             const { jobId, email } = application
 
             const isApplied = await applicationCollection.findOne({ jobId })
@@ -178,6 +183,7 @@ async function run() {
             const filter = req.query.filter
             const sort = req.query.sort
             const search = req.query.search
+            const mode = req.query.mode
 
             let options = {}
             if(sort) options = {sort : { deadline : sort === 'asc' ? 1 : -1}}
@@ -185,6 +191,7 @@ async function run() {
             let query = {
                 title : { $regex : search, $options: "i"},
             }
+            if(mode) query= {...query, workMode : mode}
             if(filter) query = {...query, category : filter}
             console.log('page',page,'sizw',size,);
             const result = await jobsCollection
@@ -198,11 +205,13 @@ async function run() {
         app.get('/jobs-count', async(req,res)=>{
             const filter = req.query.filter;
             const search = req.query.search;
+            const mode = req.query.mode;
 
             let query = {
                 title : { $regex : search, $options : "i"}
             }
             if(filter) query = {...query, category : filter}
+            if(mode) query = {...query, workMode : mode}
 
             const count = await jobsCollection.countDocuments(query)
             res.send({count})
